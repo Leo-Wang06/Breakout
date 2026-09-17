@@ -14,6 +14,13 @@ import {
 import { buildBricks } from "../utils/brick";
 import { LEVEL_1 } from "../data/levels";
 
+// Phaser 4 collider 回调的 object1/object2 宽泛类型；我们的球和砖实际都是其中的 GameObjectWithBody
+type ColliderObject =
+  | Phaser.Types.Physics.Arcade.GameObjectWithBody
+  | Phaser.Physics.Arcade.Body
+  | Phaser.Physics.Arcade.StaticBody
+  | Phaser.Tilemaps.Tile;
+
 export class GameScene extends Phaser.Scene {
   // 声明挡板
   private paddle!: Phaser.GameObjects.Rectangle;
@@ -22,12 +29,14 @@ export class GameScene extends Phaser.Scene {
   // 可变状态（restart 时须在 create() 开头重置，见开发计划 3.4）
   private launched = false;
   private lives = INITIAL_LIVES;
+  private score = 0;
+  private remaining = 0;
   // 声明球的物理 body（create 中赋值）
   private ballBody!: Phaser.Physics.Arcade.Body;
   // 声明生命数文字
   private livesText!: Phaser.GameObjects.Text;
-  // 剩余砖块数（create 中重置，步骤 6 判胜用）
-  private remaining = 0;
+  // 声明分数文字
+  private scoreText!: Phaser.GameObjects.Text;
 
   constructor() {
     super({ key: "GameScene" });
@@ -55,21 +64,20 @@ export class GameScene extends Phaser.Scene {
     this.launched = false;
     // 初始化生命
     this.lives = INITIAL_LIVES;
+    // 初始化分数
+    this.score = 0;
 
     // 构建砖块墙：布局数据 + 常量 → 砖块对象（见 utils/brick.ts）
     const wall = buildBricks(this, LEVEL_1);
+    // 剩余砖块数 = 砖块总数（hitBrick 里递减，步骤 7 判胜）
     this.remaining = wall.total;
-
-    // 顶部右侧显示剩余砖块数（验证布局用；步骤 6 改成字段并随击碎刷新）
-    this.add
-      .text(GAME_WIDTH - 10, 10, `剩余砖块：${this.remaining}`, {
-        fontSize: "24px",
-        color: "#ffffff",
-      })
-      .setOrigin(1, 0);
 
     // 渲染文字
     this.livesText = this.add.text(10, 10, `剩余球数量：${this.lives}`, {
+      fontSize: "24px",
+      color: "#ffffff",
+    });
+    this.scoreText = this.add.text(10, 40, `分数：${this.score}`, {
       fontSize: "24px",
       color: "#ffffff",
     });
@@ -88,6 +96,14 @@ export class GameScene extends Phaser.Scene {
       this.ball,
       this.paddle,
       this.hitPaddle,
+      undefined,
+      this,
+    );
+    // 球撞砖块：hitBrick 里销毁砖块并记分
+    this.physics.add.collider(
+      this.ball,
+      wall.group,
+      this.hitBrick,
       undefined,
       this,
     );
@@ -167,5 +183,17 @@ export class GameScene extends Phaser.Scene {
 
   private hitPaddle(): void {
     this.ballBody.velocity.y = -Math.abs(this.ballBody.velocity.y);
+  }
+
+  private hitBrick(_ball: ColliderObject, brick: ColliderObject): void {
+    // 砖块确实是 GameObject，这里收窄一次类型，方便用 active / destroy
+    const brickObject = brick as Phaser.GameObjects.GameObject;
+    // 同一物理帧内可能重复触发，destroy 后 active 已为 false，挡掉重复计数
+    if (!brickObject.active) return;
+
+    brickObject.destroy();
+    this.remaining--;
+    this.score += 10;
+    this.scoreText.setText(`分数：${this.score}`);
   }
 }

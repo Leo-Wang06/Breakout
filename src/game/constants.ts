@@ -13,3 +13,4 @@ export const BALL_R = 8;
 export const BALL_SPEED_X = 250;
 export const BALL_SPEED_Y = -320;
 
+export const INITIAL_LIVES = 3;

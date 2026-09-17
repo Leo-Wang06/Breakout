@@ -11,6 +11,8 @@ import {
   GAME_HEIGHT,
   INITIAL_LIVES,
 } from "../constants";
+import { buildBricks } from "../utils/brick";
+import { LEVEL_1 } from "../data/levels";
 
 export class GameScene extends Phaser.Scene {
   // 声明挡板
@@ -24,6 +26,8 @@ export class GameScene extends Phaser.Scene {
   private ballBody!: Phaser.Physics.Arcade.Body;
   // 声明生命数文字
   private livesText!: Phaser.GameObjects.Text;
+  // 剩余砖块数（create 中重置，步骤 6 判胜用）
+  private remaining = 0;
 
   constructor() {
     super({ key: "GameScene" });
@@ -51,6 +55,18 @@ export class GameScene extends Phaser.Scene {
     this.launched = false;
     // 初始化生命
     this.lives = INITIAL_LIVES;
+
+    // 构建砖块墙：布局数据 + 常量 → 砖块对象（见 utils/brick.ts）
+    const wall = buildBricks(this, LEVEL_1);
+    this.remaining = wall.total;
+
+    // 顶部右侧显示剩余砖块数（验证布局用；步骤 6 改成字段并随击碎刷新）
+    this.add
+      .text(GAME_WIDTH - 10, 10, `剩余砖块：${this.remaining}`, {
+        fontSize: "24px",
+        color: "#ffffff",
+      })
+      .setOrigin(1, 0);
 
     // 渲染文字
     this.livesText = this.add.text(10, 10, `剩余球数量：${this.lives}`, {
